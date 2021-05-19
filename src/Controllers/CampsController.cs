@@ -24,19 +24,56 @@ namespace CoreCodeCamp.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetCamps()
+        public async Task<ActionResult<CampModel[]>> GetCamps(bool includeTalks)
         {
             try
             {
-                var results = await _repository.GetAllCampsAsync();
+                var results = await _repository.GetAllCampsAsync(includeTalks);
+
+                if (results == null) return NotFound();
+
                 CampModel[] models = _mapper.Map<CampModel[]>(results);
-                return Ok(models);
+                return models;
             }
             catch (Exception)
             {
                 return this.StatusCode(StatusCodes.Status500InternalServerError, "Database Failure");            
+            } 
+        }
+
+        [HttpGet("{moniker}")]
+        public async Task<ActionResult<CampModel>> GetCamp(string moniker)
+        {
+            try
+            {
+                var result =  await _repository.GetCampAsync(moniker);
+
+                if (result == null) return NotFound();
+
+                CampModel model = _mapper.Map<CampModel>(result);
+                return model;
             }
-            
+            catch (Exception)
+            {
+                return this.StatusCode(StatusCodes.Status500InternalServerError, "Database Failure");
+            }
+        }
+
+        [HttpGet("search")]
+        public async Task<ActionResult<CampModel[]>> SearchByDate(DateTime theDate, bool includeTalks = false)
+        {
+            try
+            {
+                var results = await _repository.GetAllCampsByEventDate(theDate, includeTalks);
+
+                if (!results.Any()) return NotFound();
+
+                return _mapper.Map<CampModel[]>(results);
+            }
+            catch (Exception)
+            {
+                return this.StatusCode(StatusCodes.Status500InternalServerError, "Database Failure");
+            }
         }
     }
 }
