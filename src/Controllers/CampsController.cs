@@ -8,18 +8,22 @@ using System.Threading.Tasks;
 using CoreCodeCamp.Data;
 using AutoMapper;
 using CoreCodeCamp.Models;
+using Microsoft.AspNetCore.Routing;
 
 namespace CoreCodeCamp.Controllers
 {
     [Route("api/[controller]")]
+    [ApiController]
     public class CampsController : ControllerBase
     {
         private readonly ICampRepository _repository;
+        private readonly LinkGenerator _linkGenerator;
         private readonly IMapper _mapper;
 
-        public CampsController(ICampRepository repository, IMapper mapper )
+        public CampsController(ICampRepository repository, IMapper mapper, LinkGenerator linkGenerator )
         {
             _repository = repository;
+            _linkGenerator = linkGenerator;
             _mapper = mapper;
         }
 
@@ -74,6 +78,37 @@ namespace CoreCodeCamp.Controllers
             {
                 return this.StatusCode(StatusCodes.Status500InternalServerError, "Database Failure");
             }
+        }
+
+       
+        public async Task<ActionResult<CampModel>> Post(CampModel model)
+        {
+            try
+            {
+                //Get Uri of current model to return after success
+                var location = _linkGenerator.GetPathByAction("Get", "Camps", new { moniker = model.Moniker });
+
+                if (string.IsNullOrWhiteSpace(location))
+                {
+                    return BadRequest("Could not use curent moniker");
+                }
+
+                var camp =  _mapper.Map<Camp>(model);
+                _repository.Add(camp);
+
+                if(await _repository.SaveChangesAsync())
+                {
+                    //update campModel in case new model contains additional fields 
+                    return Created($"/api/camps/{camp.Moniker}", _mapper.Map<CampModel>(camp));
+                }
+            }
+            catch (Exception)
+            {
+
+                return this.StatusCode(StatusCodes.Status500InternalServerError, "Database Failure");
+            }
+
+            return BadRequest();
         }
     }
 }
